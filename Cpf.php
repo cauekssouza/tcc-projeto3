@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace geekcom\ValidatorDocs\Rules;
 
-use function preg_match;
 use function mb_strlen;
 
 final class Cpf extends Sanitization
@@ -13,29 +12,35 @@ final class Cpf extends Sanitization
     {
         $c = $this->sanitize($value);
 
-        // Verificação de tamanho e repetição de dígitos sem concatenação dinâmica
-        if (mb_strlen($c) !== 11 || preg_match('/^(\d)\1{10}$/', $c)) {
+        // Verificação de tamanho e eliminação de CPFs com todos os dígitos iguais (sem regex dinâmica)
+        if (mb_strlen($c) !== 11) {
             return false;
         }
 
-        // Primeiro dígito verificador
-        $n = 0;
-        for ($s = 10, $i = 0; $s >= 2; $s--, $i++) {
-            $n += ((int) $c[$i]) * $s;
+        // Checagem segura de repetição: evita ReDoS e elimina concatenação dinâmica
+        $firstDigit = $c[0];
+        if (str_repeat($firstDigit, 11) === $c) {
+            return false;
         }
 
-        $dv1 = (($n % 11) < 2) ? 0 : 11 - ($n % 11);
+        // Cálculo do primeiro dígito verificador com casting explícito
+        $n = 0;
+        for ($s = 10, $i = 0; $s >= 2; $s--, $i++) {
+            $n += ((int) $c[$i]) * (int) $s;
+        }
+
+        $dv1 = (($n %= 11) < 2) ? 0 : 11 - $n;
         if ((int) $c[9] !== $dv1) {
             return false;
         }
 
-        // Segundo dígito verificador
+        // Cálculo do segundo dígito verificador com casting explícito
         $n = 0;
         for ($s = 11, $i = 0; $s >= 2; $s--, $i++) {
-            $n += ((int) $c[$i]) * $s;
+            $n += ((int) $c[$i]) * (int) $s;
         }
 
-        $dv2 = (($n % 11) < 2) ? 0 : 11 - ($n % 11);
+        $dv2 = (($n %= 11) < 2) ? 0 : 11 - $n;
         if ((int) $c[10] !== $dv2) {
             return false;
         }
