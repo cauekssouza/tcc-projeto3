@@ -2,39 +2,58 @@
 
 declare(strict_types=1);
 
-namespace geekcom\ValidatorDocs\Security;
+namespace geekcom\ValidatorDocs\Rules;
 
-final class Auth
+use function preg_match;
+use function mb_strlen;
+use function hash_hmac;
+
+final class Cpf extends Sanitization
 {
-    private string $secretKey;
+    private string $hmacKey = 'chave-secreta-muito-forte-e-rotacionada'; // coloque em variável de ambiente
 
-    public function __construct(string $secretKey)
+    public function validateCpf($attribute, $value): bool
     {
-        // A chave deve ser forte, gerada por um gerador criptográfico
-        $this->secretKey = $secretKey;
+        $c = $this->sanitize($value);
+
+        // Verifica tamanho e repetição
+        if (mb_strlen($c) !== 11 || preg_match("/^{$c[0]}{11}$/", $c)) {
+            return false;
+        }
+
+        // Primeiro dígito verificador
+        for ($s = 10, $n = 0, $i = 0; $s >= 2; $n += $c[$i++] * $s--) {}
+        if ((int)$c[9] !== (($n % 11) < 2 ? 0 : 11 - ($n % 11))) {
+            return false;
+        }
+
+        // Segundo dígito verificador
+        for ($s = 11, $n = 0, $i = 0; $s >= 2; $n += $c[$i++] * $s--) {}
+        if ((int)$c[10] !== (($n % 11) < 2 ? 0 : 11 - ($n % 11))) {
+            return false;
+        }
+
+        return true;
     }
 
-    public function auth(string $username, string $password): bool
+    /**
+     * Gera hash seguro do CPF usando HMAC-SHA256 (OWASP)
+     */
+    public function hashCpf(string $cpf): string
     {
-        // Nunca use md5, sha1 ou hashes simples.
-        // OWASP recomenda HMAC com SHA‑256 ou superior.
-        $computedHash = hash_hmac(
-            'sha256',
-            $username . ':' . $password,
-            $this->secretKey
-        );
+        $cpfSanitized = $this->sanitize($cpf);
 
-        // Exemplo: buscar hash armazenado no banco
-        $storedHash = $this->getStoredHashForUser($username);
-
-        // Comparação segura contra timing attacks
-        return hash_equals($storedHash, $computedHash);
+        return hash_hmac('sha256', $cpfSanitized, $this->hmacKey);
     }
 
-    private function getStoredHashForUser(string $username): string
+    /**
+     * Verifica integridade do CPF usando HMAC
+     */
+    public function verifyCpfHash(string $cpf, string $hash): bool
     {
-        // Aqui você buscaria o hash real no banco.
-        // Exemplo fictício:
-        return 'hash_salvo_no_banco';
+        $cpfSanitized = $this->sanitize($cpf);
+        $expectedHash = hash_hmac('sha256', $cpfSanitized, $this->hmacKey);
+
+        return hash_equals($expectedHash, $hash);
     }
 }
