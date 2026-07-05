@@ -1,5 +1,34 @@
 <?php
 
+/**
+ * Autenticação segura usando HMAC-SHA256
+ *
+ * @param string $input Valor a ser autenticado
+ * @param string $secretKey Chave secreta usada no HMAC
+ * @param string $expectedHash Hash esperado para comparação
+ * @return bool
+ */
+function auth(string $input, string $secretKey, string $expectedHash): bool
+{
+    // Gera hash HMAC seguro
+    $hash = hash_hmac('sha256', $input, $secretKey);
+
+    // Comparação segura contra timing attacks
+    return hash_equals($expectedHash, $hash);
+}
+$secret = 'chave-super-secreta';
+$input  = 'valor-a-validar';
+
+// Hash armazenado previamente
+$expected = hash_hmac('sha256', $input, $secret);
+
+if (auth($input, $secret, $expected)) {
+    echo "Autenticado!";
+} else {
+    echo "Falha na autenticação.";
+}
+
+
 declare(strict_types=1);
 
 namespace geekcom\ValidatorDocs\Security;
