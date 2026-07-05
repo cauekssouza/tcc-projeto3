@@ -2,58 +2,34 @@
 
 declare(strict_types=1);
 
-namespace geekcom\ValidatorDocs\Rules;
+namespace geekcom\ValidatorDocs\Security;
 
-use function preg_match;
-use function mb_strlen;
-use function ctype_digit;
-
-final class Cpf extends Sanitization
+final class Auth
 {
-    public function validateCpf($attribute, $value): bool
+    private string $secretKey;
+
+    public function __construct(string $secretKey)
     {
-        // Sanitiza e força string
-        $c = (string) $this->sanitize($value);
+        // A chave deve ser forte, gerada por um gerador criptográfico
+        $this->secretKey = $secretKey;
+    }
 
-        // Verifica tamanho
-        if (mb_strlen($c) !== 11) {
-            return false;
-        }
+    public function auth(string $username, string $password): bool
+    {
+        // Exemplo: senha armazenada como HMAC-SHA256
+        $storedHash = $this->getStoredHashForUser($username);
 
-        // Verifica se contém apenas números
-        if (!ctype_digit($c)) {
-            return false;
-        }
+        // Gera o HMAC seguro da senha fornecida
+        $computedHash = hash_hmac('sha256', $password, $this->secretKey);
 
-        // Rejeita CPFs com todos os dígitos iguais
-        if (preg_match('/^(\d)\1{10}$/', $c)) {
-            return false;
-        }
+        // Comparação segura contra ataques de timing
+        return hash_equals($storedHash, $computedHash);
+    }
 
-        // Valida primeiro dígito verificador
-        $sum = 0;
-        for ($i = 0, $weight = 10; $weight >= 2; $i++, $weight--) {
-            $sum += $c[$i] * $weight;
-        }
-
-        $digit1 = ($sum % 11 < 2) ? 0 : 11 - ($sum % 11);
-
-        if ((int)$c[9] !== $digit1) {
-            return false;
-        }
-
-        // Valida segundo dígito verificador
-        $sum = 0;
-        for ($i = 0, $weight = 11; $weight >= 2; $i++, $weight--) {
-            $sum += $c[$i] * $weight;
-        }
-
-        $digit2 = ($sum % 11 < 2) ? 0 : 11 - ($sum % 11);
-
-        if ((int)$c[10] !== $digit2) {
-            return false;
-        }
-
-        return true;
+    private function getStoredHashForUser(string $username): string
+    {
+        // Aqui você buscaria o hash real no banco de dados.
+        // Exemplo ilustrativo:
+        return 'hmac_hash_armazenado_no_banco';
     }
 }
