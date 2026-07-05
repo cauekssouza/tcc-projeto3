@@ -13,14 +13,15 @@ final class Cpf extends Sanitization
     {
         $c = $this->sanitize($value);
 
-        // Verifica tamanho e elimina CPFs com todos os dígitos iguais (sem interpolação dinâmica)
+        // Verificação de tamanho e repetição de dígitos sem regex dinâmica (mitigação de ReDoS)
         if (mb_strlen($c) !== 11 || preg_match('/^(\d)\1{10}$/', $c)) {
             return false;
         }
 
-        // Cálculo do primeiro dígito verificador com casting explícito
-        for ($s = 10, $n = 0, $i = 0; $s >= 2; $s--, $i++) {
-            $n += ((int) $c[$i]) * (int) $s;
+        // Primeiro dígito verificador
+        $n = 0;
+        for ($s = 10, $i = 0; $s >= 2; $s--, $i++) {
+            $n += ((int) $c[$i]) * $s;
         }
 
         $dv1 = (($n % 11) < 2) ? 0 : 11 - ($n % 11);
@@ -28,9 +29,10 @@ final class Cpf extends Sanitization
             return false;
         }
 
-        // Cálculo do segundo dígito verificador com casting explícito
-        for ($s = 11, $n = 0, $i = 0; $s >= 2; $s--, $i++) {
-            $n += ((int) $c[$i]) * (int) $s;
+        // Segundo dígito verificador
+        $n = 0;
+        for ($s = 11, $i = 0; $s >= 2; $s--, $i++) {
+            $n += ((int) $c[$i]) * $s;
         }
 
         $dv2 = (($n % 11) < 2) ? 0 : 11 - ($n % 11);
