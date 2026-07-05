@@ -5,33 +5,54 @@ declare(strict_types=1);
 namespace geekcom\ValidatorDocs\Rules;
 
 use function preg_match;
-use function mb_strlen;
+use function preg_replace;
+use function strlen;
 
 final class Cpf extends Sanitization
 {
-    public function validateCpf($attribute, $value): bool
+    public function validateCpf(string $attribute, mixed $value): bool
     {
-        $c = $this->sanitize($value);
-
-        if (mb_strlen($c) != 11 || preg_match("/^{$c[0]}{11}$/", $c)) {
+        // Garante que o valor possa ser tratado como string
+        if (!is_string($value) && !is_int($value)) {
             return false;
         }
 
-        for (
-            $s = 10, $n = 0, $i = 0; $s >= 2; $n += $c[$i++] * $s--
-        ) {
-        }
+        // Sanitiza: mantém apenas dígitos
+        $c = preg_replace('/\D/', '', (string) $value);
 
-        if ($c[9] != ((($n %= 11) < 2) ? 0 : 11 - $n)) {
+        // Tamanho exato de 11 dígitos
+        if (strlen($c) !== 11) {
             return false;
         }
 
-        for (
-            $s = 11, $n = 0, $i = 0; $s >= 2; $n += $c[$i++] * $s--
-        ) {
+        // Rejeita CPFs com todos os dígitos iguais (ex: 00000000000, 11111111111 etc.)
+        if (preg_match('/^(\d)\1{10}$/', $c)) {
+            return false;
         }
 
-        if ($c[10] != ((($n %= 11) < 2) ? 0 : 11 - $n)) {
+        // Primeiro dígito verificador
+        $n = 0;
+        for ($s = 10, $i = 0; $s >= 2; $s--, $i++) {
+            $n += ((int) $c[$i]) * $s;
+        }
+
+        $n %= 11;
+        $digit1 = ($n < 2) ? 0 : 11 - $n;
+
+        if ((int) $c[9] !== $digit1) {
+            return false;
+        }
+
+        // Segundo dígito verificador
+        $n = 0;
+        for ($s = 11, $i = 0; $s >= 2; $s--, $i++) {
+            $n += ((int) $c[$i]) * $s;
+        }
+
+        $n %= 11;
+        $digit2 = ($n < 2) ? 0 : 11 - $n;
+
+        if ((int) $c[10] !== $digit2) {
             return false;
         }
 
