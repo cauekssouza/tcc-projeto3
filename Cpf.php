@@ -4,23 +4,36 @@ declare(strict_types=1);
 
 namespace geekcom\ValidatorDocs\Rules;
 
-use function preg_match;
-use function mb_strlen;
+use function strlen;
+use function ctype_digit;
 
 final class Cpf extends Sanitization
 {
-    public function validateCpf($attribute, $value): bool
+    public function validateCpf(string $attribute, mixed $value): bool
     {
-        // Sanitiza e garante que só restem números
-        $c = preg_replace('/\D/', '', (string) $this->sanitize($value));
+        // Sanitiza (por exemplo, removendo pontos, traços etc.)
+        $c = $this->sanitize($value);
 
-        // Verifica tamanho
-        if (mb_strlen($c) !== 11) {
+        // Garante que é string
+        if (!is_string($c)) {
             return false;
         }
 
-        // Impede CPFs com todos os dígitos iguais (ex: 11111111111)
-        if (preg_match('/^(\d)\1{10}$/', $c)) {
+        // Remove espaços extras, se necessário
+        $c = trim($c);
+
+        // Deve ter exatamente 11 caracteres
+        if (strlen($c) !== 11) {
+            return false;
+        }
+
+        // Deve conter apenas dígitos
+        if (!ctype_digit($c)) {
+            return false;
+        }
+
+        // Rejeita CPFs com todos os dígitos iguais (ex: 00000000000, 11111111111)
+        if ($c === str_repeat($c[0], 11)) {
             return false;
         }
 
@@ -30,7 +43,8 @@ final class Cpf extends Sanitization
             $sum += (int) $c[$i] * $weight;
         }
 
-        $digit1 = ($sum % 11 < 2) ? 0 : 11 - ($sum % 11);
+        $remainder = $sum % 11;
+        $digit1 = ($remainder < 2) ? 0 : 11 - $remainder;
 
         if ((int) $c[9] !== $digit1) {
             return false;
@@ -42,7 +56,8 @@ final class Cpf extends Sanitization
             $sum += (int) $c[$i] * $weight;
         }
 
-        $digit2 = ($sum % 11 < 2) ? 0 : 11 - ($sum % 11);
+        $remainder = $sum % 11;
+        $digit2 = ($remainder < 2) ? 0 : 11 - $remainder;
 
         if ((int) $c[10] !== $digit2) {
             return false;
