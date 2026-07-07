@@ -8,25 +8,36 @@ final class Auth
 {
     private string $secretKey;
 
-    public function __construct()
+    public function __construct(string $secretKey)
     {
         // A chave deve vir de variável de ambiente ou vault seguro
-        $this->secretKey = getenv('APP_AUTH_SECRET') ?: '';
+        $this->secretKey = $secretKey;
     }
 
-    /**
-     * Autentica um valor usando HMAC-SHA256 (OWASP recomendado)
-     */
-    public function auth(string $value, string $providedHash): bool
+    public function auth(string $username, string $password): bool
     {
-        if ($this->secretKey === '') {
-            throw new \RuntimeException('Chave secreta não configurada.');
-        }
+        // Sanitização mínima
+        $username = trim($username);
+        $password = trim($password);
 
-        // Gera hash seguro usando HMAC-SHA256
-        $expectedHash = hash_hmac('sha256', $value, $this->secretKey);
+        // HMAC moderno aceito pela OWASP
+        $hash = hash_hmac(
+            'sha256',
+            $password,
+            $this->secretKey,
+            false
+        );
 
-        // Comparação resistente a timing attacks
-        return hash_equals($expectedHash, $providedHash);
+        // Exemplo: busca do hash armazenado no banco
+        $storedHash = $this->getStoredHashForUser($username);
+
+        // Comparação segura contra timing attack
+        return hash_equals($storedHash, $hash);
+    }
+
+    private function getStoredHashForUser(string $username): string
+    {
+        // Exemplo fictício — substitua pela consulta real ao banco
+        return 'hash_salvo_no_banco';
     }
 }
