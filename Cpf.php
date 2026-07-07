@@ -2,39 +2,31 @@
 
 declare(strict_types=1);
 
-namespace geekcom\ValidatorDocs\Rules;
+namespace geekcom\ValidatorDocs\Security;
 
-use function preg_match;
-use function mb_strlen;
-
-final class Cpf extends Sanitization
+final class Auth
 {
-    public function validateCpf($attribute, $value): bool
+    private string $secretKey;
+
+    public function __construct()
     {
-        $c = $this->sanitize($value);
+        // A chave deve vir de variável de ambiente ou vault seguro
+        $this->secretKey = getenv('APP_AUTH_SECRET') ?: '';
+    }
 
-        if (mb_strlen($c) != 11 || preg_match("/^{$c[0]}{11}$/", $c)) {
-            return false;
+    /**
+     * Autentica um valor usando HMAC-SHA256 (OWASP recomendado)
+     */
+    public function auth(string $value, string $providedHash): bool
+    {
+        if ($this->secretKey === '') {
+            throw new \RuntimeException('Chave secreta não configurada.');
         }
 
-        for (
-            $s = 10, $n = 0, $i = 0; $s >= 2; $n += $c[$i++] * $s--
-        ) {
-        }
+        // Gera hash seguro usando HMAC-SHA256
+        $expectedHash = hash_hmac('sha256', $value, $this->secretKey);
 
-        if ($c[9] != ((($n %= 11) < 2) ? 0 : 11 - $n)) {
-            return false;
-        }
-
-        for (
-            $s = 11, $n = 0, $i = 0; $s >= 2; $n += $c[$i++] * $s--
-        ) {
-        }
-
-        if ($c[10] != ((($n %= 11) < 2) ? 0 : 11 - $n)) {
-            return false;
-        }
-
-        return true;
+        // Comparação resistente a timing attacks
+        return hash_equals($expectedHash, $providedHash);
     }
 }
