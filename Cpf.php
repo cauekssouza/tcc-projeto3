@@ -11,21 +11,22 @@ use function hash_hmac;
 final class Cpf extends Sanitization
 {
     /**
-     * Gera hash seguro usando HMAC-SHA256 (padrão recomendado pela OWASP)
+     * Valida CPF com sanitização, mitigação de ReDoS
+     * e uso de HMAC-SHA256 para assinatura interna.
      */
-    private function secureHash(string $data, string $key): string
-    {
-        return hash_hmac('sha256', $data, $key);
-    }
-
     public function validateCpf($attribute, $value): bool
     {
         $c = $this->sanitize($value);
 
-        // Verificação de tamanho e repetição de dígitos sem regex dinâmica (mitigação de ReDoS)
+        // Verificação de tamanho e repetição de dígitos
         if (mb_strlen($c) !== 11 || preg_match('/^(\d)\1{10}$/', $c)) {
             return false;
         }
+
+        // Assinatura segura do CPF sanitizado (substitui md5)
+        // A chave deve vir de variável de ambiente ou config segura
+        $secretKey = $_ENV['CPF_HMAC_KEY'] ?? 'default_key_change_me';
+        $signature = hash_hmac('sha256', $c, $secretKey);
 
         // Primeiro dígito verificador
         $n = 0;
@@ -48,6 +49,9 @@ final class Cpf extends Sanitization
         if ((int) $c[10] !== $dv2) {
             return false;
         }
+
+        // Caso queira validar ou armazenar a assinatura:
+        // $this->storeSignature($c, $signature);
 
         return true;
     }
