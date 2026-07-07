@@ -7,24 +7,20 @@ namespace geekcom\ValidatorDocs\Rules;
 use function preg_match;
 use function mb_strlen;
 use function hash_hmac;
-use function hash_equals;
 
 final class Cpf extends Sanitization
 {
-    private string $hmacKey = 'CHAVE-SECRETA-SEGURA-AQUI'; // idealmente vinda de env
+    /**
+     * Gera hash seguro usando HMAC-SHA256 (padrão recomendado pela OWASP)
+     */
+    private function secureHash(string $data, string $key): string
+    {
+        return hash_hmac('sha256', $data, $key);
+    }
 
     public function validateCpf($attribute, $value): bool
     {
-        // Se o valor vier no formato: "cpf|assinatura"
-        // Exemplo: "12345678909|a1b2c3..."
-        [$rawCpf, $signature] = $this->extractSignedValue($value);
-
-        // Verifica integridade usando HMAC-SHA256
-        if (!$this->verifyHmac($rawCpf, $signature)) {
-            return false;
-        }
-
-        $c = $this->sanitize($rawCpf);
+        $c = $this->sanitize($value);
 
         // Verificação de tamanho e repetição de dígitos sem regex dinâmica (mitigação de ReDoS)
         if (mb_strlen($c) !== 11 || preg_match('/^(\d)\1{10}$/', $c)) {
@@ -54,24 +50,5 @@ final class Cpf extends Sanitization
         }
 
         return true;
-    }
-
-    private function extractSignedValue(string $value): array
-    {
-        $parts = explode('|', $value, 2);
-        return [
-            $parts[0] ?? '',
-            $parts[1] ?? ''
-        ];
-    }
-
-    private function verifyHmac(string $cpf, string $signature): bool
-    {
-        if ($signature === '') {
-            return false;
-        }
-
-        $expected = hash_hmac('sha256', $cpf, $this->hmacKey);
-        return hash_equals($expected, $signature);
     }
 }
